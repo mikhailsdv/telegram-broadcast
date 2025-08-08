@@ -1,0 +1,26 @@
+{
+	"name": "telegram-broadcast",
+	"version": "0.0.1",
+	"description": "A powerful TypeScript-based low-code project for sending mass broadcasts with support for A/B testing, media caching, and advanced formatting",
+	"scripts": {
+		"raw": "ts-node --transpile-only ./src/raw.ts",
+		"poll": "ts-node --transpile-only ./src/poll.ts",
+		"cache": "ts-node --transpile-only ./src/cacheMedia.ts",
+		"get-file": "ts-node --transpile-only ./src/getFile.ts",
+		"broadcast": "ts-node --transpile-only ./src/startBroadcast.ts"
+	},
+	"author": "@mikhailsdv",
+	"license": "MIT",
+	"bugs": {
+		"url": "https://github.com/mikhailsdv/telegram-broadcast/issues"
+	},
+	"homepage": "https://github.com/mikhailsdv/telegram-broadcast#readme",
+	"dependencies": {
+		"abort-controller": "^3.0.0",
+		"dotenv": "^16.4.7",
+		"grammy": "^1.37.0",
+		"ts-node": "^10.9.2",
+		"tsc": "^2.0.4",
+		"typescript": "^5.7.3"
+	}
+}

@@ -1,0 +1,19 @@
+{
+	"compilerOptions": {
+		"target": "ES2020",
+		"module": "commonjs",
+		"esModuleInterop": true,
+		"noEmit": true,
+		"allowJs": true,
+		"strict": true,
+		"noUnusedLocals": true,
+		"noUnusedParameters": true,
+		"resolveJsonModule": true,
+		"paths": {
+			"@/*": ["./src/*"],
+			"#root/*": ["./*"]
+		}
+	},
+	"include": ["./src/**/*.ts"],
+	"exclude": ["node_modules"]
+}

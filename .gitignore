@@ -1,0 +1,8 @@
+/node_modules
+.DS_Store
+.vscode
+.env
+
+/broadcasts/*
+!/broadcasts/.gitkeep
+!/broadcasts/broadcast.example.ts
