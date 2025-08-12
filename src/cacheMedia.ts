@@ -12,6 +12,14 @@ const mediaTypeMap = {
 	video: "sendVideo",
 	videoNote: "sendVideoNote",
 } as const
+if (!mediaTypeMap[mediaType]) {
+	console.error(
+		`Invalid media type: ${mediaType}. Supported types: ${Object.keys(
+			mediaTypeMap
+		).join(", ")}`
+	)
+	process.exit(1)
+}
 const apiMethod = mediaTypeMap[mediaType]
 ;(async () => {
 	const response = await bot.api[apiMethod](ADMIN_CHAT_ID, new InputFile(src))
