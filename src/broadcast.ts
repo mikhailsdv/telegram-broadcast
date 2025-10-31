@@ -44,6 +44,7 @@ export class Broadcast {
 	private mediaMap = new Map<InputFile, string>()
 	private uniquifyChats: boolean = true
 	private broadcastFilename?: string = process.env.BROADCAST_FILENAME
+	private isTest: boolean = false
 	private stateFile?: string
 	private onErrorCallback?: (
 		code: ErrorCode | undefined,
@@ -58,6 +59,7 @@ export class Broadcast {
 		this.abTestStrategy = args?.abTestStrategy ?? this.abTestStrategy
 		this.paseMode = args?.paseMode ?? this.paseMode
 		this.debug = args?.debug ?? this.debug
+		this.isTest = false
 
 		if (!this.broadcastFilename) {
 			throw new Error("BROADCAST_FILENAME is not set")
@@ -185,6 +187,7 @@ export class Broadcast {
 	}
 
 	public async test(chatIdOrChatIds?: ChatId | ChatId[]) {
+		this.isTest = true
 		if (chatIdOrChatIds) {
 			if (Array.isArray(chatIdOrChatIds)) {
 				this.chats = chatIdOrChatIds
@@ -216,7 +219,7 @@ export class Broadcast {
 	}
 
 	private saveState() {
-		if (!this.stateFile) return
+		if (!this.stateFile || this.isTest) return
 
 		const state: BroadcastState = {
 			lastRunDate: new Date().toISOString(),
@@ -232,7 +235,8 @@ export class Broadcast {
 	}
 
 	private loadState(): BroadcastState | null {
-		if (!this.stateFile || !existsSync(this.stateFile)) return null
+		if (!this.stateFile || !existsSync(this.stateFile) || this.isTest)
+			return null
 
 		try {
 			const data = readFileSync(this.stateFile, "utf8")
