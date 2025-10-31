@@ -26,6 +26,7 @@ import {
 	replaceLastNamePlaceholder,
 } from "./formatter"
 import {ADMIN_CHAT_ID, BOT_TOKEN, MESSAGE_SEND_TIMEOUT_MS} from "./env"
+import {ErrorCode, getErrorCode} from "./errors"
 
 export class Broadcast {
 	public chats: NonNullable<BroadcastParams["chats"]> = []
@@ -44,6 +45,10 @@ export class Broadcast {
 	private uniquifyChats: boolean = true
 	private broadcastFilename?: string = process.env.BROADCAST_FILENAME
 	private stateFile?: string
+	private onErrorCallback?: (
+		code: ErrorCode | undefined,
+		error: unknown
+	) => void
 
 	constructor(args?: BroadcastParams) {
 		this.addEmptyMessage()
@@ -126,14 +131,20 @@ export class Broadcast {
 		return this
 	}
 
-	public addButton(text: string, url: string) {
-		if (this.messages[this.messageIterator].inlineKeyboard) {
-			this.messages[this.messageIterator]
-				.inlineKeyboard!.row()
-				.url(text, url)
+	public addButton(text: string, urlOrCallbackData: string) {
+		const isUrl = /^https?:\/\//.test(urlOrCallbackData)
+		const inlineKeyboard =
+			this.messages[this.messageIterator].inlineKeyboard
+		if (inlineKeyboard) {
+			inlineKeyboard
+				.row()
+				[isUrl ? "url" : "text"](text, urlOrCallbackData)
 		} else {
 			this.messages[this.messageIterator].inlineKeyboard =
-				new InlineKeyboard().url(text, url)
+				new InlineKeyboard()[isUrl ? "url" : "text"](
+					text,
+					urlOrCallbackData
+				)
 		}
 		return this
 	}
@@ -173,7 +184,7 @@ export class Broadcast {
 		}
 	}
 
-	async test(chatIdOrChatIds?: ChatId | ChatId[]) {
+	public async test(chatIdOrChatIds?: ChatId | ChatId[]) {
 		if (chatIdOrChatIds) {
 			if (Array.isArray(chatIdOrChatIds)) {
 				this.chats = chatIdOrChatIds
@@ -193,7 +204,7 @@ export class Broadcast {
 		await this.start()
 	}
 
-	getMediaFileId(response: SupportedMessageType) {
+	private getMediaFileId(response: SupportedMessageType) {
 		if ("photo" in response && Array.isArray(response.photo)) {
 			return arrayEnd(response.photo)!.file_id
 		} else if ("video" in response) {
@@ -232,7 +243,7 @@ export class Broadcast {
 		}
 	}
 
-	async send(chatId: ChatId, index: number) {
+	private async send(chatId: ChatId, index: number) {
 		this.totalSentCount = index + 1
 		console.log(`Sending message to chatId ${chatId}, index ${index} ...`)
 
@@ -389,11 +400,11 @@ export class Broadcast {
 				if (error.parameters.migrate_to_chat_id) {
 					await this.send(error.parameters.migrate_to_chat_id, index)
 					return
-				} else {
-					console.log(error.message)
 				}
+				const errorCode = getErrorCode(error.description)
+				this.onErrorCallback?.(errorCode, error)
 			}
-			this.debug && console.log(error)
+			this.debug && console.error(error)
 		}
 
 		console.log("---")
@@ -418,7 +429,7 @@ export class Broadcast {
 		}
 	}
 
-	async start() {
+	public async start() {
 		if (isEmpty(this.chats)) {
 			throw new Error(
 				"List of chat_id is empty. Add chats with .addChats() method"
@@ -456,5 +467,11 @@ export class Broadcast {
 			}
 		}
 		await loop(startIndex)
+	}
+
+	public onError(
+		callback: (code: ErrorCode | undefined, error: unknown) => void
+	) {
+		this.onErrorCallback = callback
 	}
 }
