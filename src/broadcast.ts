@@ -473,5 +473,6 @@ export class Broadcast {
 		callback: (code: ErrorCode | undefined, error: unknown) => void
 	) {
 		this.onErrorCallback = callback
+		return this
 	}
 }
