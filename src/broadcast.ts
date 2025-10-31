@@ -383,7 +383,7 @@ export class Broadcast {
 			this.successfullySentCount += 1
 			console.log(
 				`Successfully sent to ${chatId}, index ${index}/${
-					this.chats.length
+					this.chats.length - 1
 				}, success ${this.successfullySentCount}/${
 					this.totalSentCount
 				} (${Math.round(
