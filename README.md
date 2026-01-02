@@ -13,6 +13,9 @@ A powerful TypeScript-based low-code project for sending mass broadcasts with su
 -   **Progress Tracking**: Monitor sending progress and success rates
 -   **Test Mode**: Preview messages before sending to all recipients
 -   **Resume Capability**: Continue interrupted broadcasts from where they left off
+-   **Callbacks**: Per-chat hooks for success and error events (`onSuccess`, `onError`)
+-   **Custom Actions**: Run async side effects after each send (`addCustomAction`)
+-   **Structured Logging**: Per-broadcast log files and pretty console output
 
 ## Installation
 
