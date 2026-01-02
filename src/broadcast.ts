@@ -34,21 +34,21 @@ import {createLogger, getLogFilePath, type Logger} from "./logger"
 
 export class Broadcast {
 	public chats: NonNullable<BroadcastParams["chats"]> = []
-	public shuffleChats: boolean = false
+	public shuffleChats = false
 	public paseMode: NonNullable<BroadcastParams["paseMode"]> = "HTML"
 	public abTestStrategy: NonNullable<BroadcastParams["abTestStrategy"]> =
 		"distributed"
 	public debug: NonNullable<BroadcastParams["debug"]> = false
 	private bot: Bot
 	private messages: BroadcastMessage[] = []
-	private messagePointer: number = 0
+	private messagePointer = 0
 	private successfullySentCount = 0
 	private totalSentCount = 0
 	private totalErrorCount = 0
 	private mediaMap = new Map<InputFile, string>()
-	private uniquifyChats: boolean = true
-	private broadcastFilename: string = process.env.BROADCAST_FILENAME!
-	private isTest: boolean = false
+	private uniquifyChats = true
+	private broadcastFilename = process.env.BROADCAST_FILENAME!
+	private isTest = false
 	private logger: Logger
 	private stateFile?: string
 	private onErrorCallback?: BroadcastErrorCallback
