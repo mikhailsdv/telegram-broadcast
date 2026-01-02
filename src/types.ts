@@ -1,5 +1,6 @@
 import {InlineKeyboard} from "grammy"
 import {InputFile, Message, ParseMode} from "grammy/types"
+import {ErrorCode} from "./errors"
 
 export type ChatId = string | number
 
@@ -35,3 +36,37 @@ export type BroadcastParams = {
 	paseMode?: ParseMode
 	debug?: boolean
 }
+
+export type BroadcastErrorCallback = ({
+	error,
+	code,
+	chatId,
+	index,
+	message,
+}: {
+	error: unknown
+	code: ErrorCode | undefined
+	chatId: ChatId
+	index: number
+	message: BroadcastMessage | null
+}) => void
+
+export type BroadcastSuccessCallback = ({
+	chatId,
+	index,
+	message,
+}: {
+	chatId: ChatId
+	index: number
+	message: BroadcastMessage | null
+}) => void
+
+export type BroadcastCustomActionCallback = ({
+	chatId,
+	index,
+	message,
+}: {
+	chatId: ChatId
+	index: number
+	message: BroadcastMessage | null
+}) => Promise<void>

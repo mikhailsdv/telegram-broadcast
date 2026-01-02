@@ -9,6 +9,9 @@ import {
 	ChatId,
 	InputFileOrString,
 	SupportedMessageType,
+	BroadcastErrorCallback,
+	BroadcastSuccessCallback,
+	BroadcastCustomActionCallback,
 } from "./types"
 import {
 	arrayRandom,
@@ -26,7 +29,8 @@ import {
 	replaceLastNamePlaceholder,
 } from "./formatter"
 import {ADMIN_CHAT_ID, BOT_TOKEN, MESSAGE_SEND_TIMEOUT_MS} from "./env"
-import {ErrorCode, getErrorCode} from "./errors"
+import {getErrorCode} from "./errors"
+import {createLogger, getLogFilePath, type Logger} from "./logger"
 
 export class Broadcast {
 	public chats: NonNullable<BroadcastParams["chats"]> = []
@@ -37,22 +41,21 @@ export class Broadcast {
 	public debug: NonNullable<BroadcastParams["debug"]> = false
 	private bot: Bot
 	private messages: BroadcastMessage[] = []
-	private messageIterator: number = 0
+	private messagePointer: number = 0
 	private successfullySentCount = 0
 	private totalSentCount = 0
 	private totalErrorCount = 0
 	private mediaMap = new Map<InputFile, string>()
 	private uniquifyChats: boolean = true
-	private broadcastFilename?: string = process.env.BROADCAST_FILENAME
+	private broadcastFilename: string = process.env.BROADCAST_FILENAME!
 	private isTest: boolean = false
+	private logger: Logger
 	private stateFile?: string
-	private onErrorCallback?: (
-		code: ErrorCode | undefined,
-		error: unknown
-	) => void
+	private onErrorCallback?: BroadcastErrorCallback
+	private onSuccessCallback?: BroadcastSuccessCallback
+	private customActionCallback?: BroadcastCustomActionCallback
 
 	constructor(args?: BroadcastParams) {
-		this.addEmptyMessage()
 		this.bot = new Bot(BOT_TOKEN)
 		this.chats = args?.chats ?? this.chats
 		this.shuffleChats = args?.shuffleChats ?? this.shuffleChats
@@ -62,8 +65,11 @@ export class Broadcast {
 		this.isTest = false
 
 		if (!this.broadcastFilename) {
-			throw new Error("BROADCAST_FILENAME is not set")
+			this.fatalError(
+				"BROADCAST_FILENAME environment variable is not set"
+			)
 		}
+		this.logger = createLogger(this.broadcastFilename)
 		this.stateFile = path.join(
 			process.cwd(),
 			"broadcasts",
@@ -71,60 +77,52 @@ export class Broadcast {
 		)
 	}
 
-	private addEmptyMessage() {
-		this.messages[this.messageIterator] = this.getEmptyMessage()
+	private fatalError(message: string): never {
+		this.logger.fatal(message)
+		process.exit(1)
 	}
 
-	private getEmptyMessage() {
-		const emptyMessage: BroadcastMessage = {
-			text: undefined,
-			photo: undefined,
-			video: undefined,
-			videoNote: undefined,
-			inlineKeyboard: undefined,
-			disableNotification: false,
-			disableLinkPreview: false,
+	private addToCurrentMessage(properties: Partial<BroadcastMessage>) {
+		this.messages[this.messagePointer] = {
+			...this.messages[this.messagePointer],
+			...properties,
 		}
-		return emptyMessage
 	}
 
 	public nextMessage() {
-		const currentMessage = this.messages[this.messageIterator]
-		this.checkMessageComplete(currentMessage)
-		this.messageIterator += 1
-		this.addEmptyMessage()
+		this.messagePointer += 1
 		return this
 	}
 
 	public addText(text: string) {
 		const trimmedText = trim(text)
-		if (isEmpty(trimmedText)) throw new Error("Can't add an empty text")
-		this.messages[this.messageIterator].text = trimmedText
+		if (isEmpty(trimmedText)) this.fatalError("Can't add an empty text")
+		this.addToCurrentMessage({text: trimmedText})
 		return this
 	}
 
 	public addPhoto(photo: InputFileOrString) {
-		this.messages[this.messageIterator].photo = photo
+		this.addToCurrentMessage({photo})
 		return this
 	}
 
 	public addVideo(video: InputFileOrString) {
-		this.messages[this.messageIterator].video = video
+		this.addToCurrentMessage({video})
 		return this
 	}
 
 	public addVideoNote(videoNote: InputFileOrString) {
-		this.messages[this.messageIterator].videoNote = videoNote
+		this.addToCurrentMessage({videoNote})
 		return this
 	}
 
 	public disableLinkPreview() {
-		this.messages[this.messageIterator].disableLinkPreview = true
+		this.addToCurrentMessage({disableLinkPreview: true})
 		return this
 	}
 
 	public disableNotification() {
-		this.messages[this.messageIterator].disableNotification = true
+		this.addToCurrentMessage({disableNotification: true})
 		return this
 	}
 
@@ -136,22 +134,24 @@ export class Broadcast {
 	public addButton(text: string, urlOrCallbackData: string) {
 		const isUrl = /^https?:\/\//.test(urlOrCallbackData)
 		const inlineKeyboard =
-			this.messages[this.messageIterator].inlineKeyboard
+			this.messages[this.messagePointer]?.inlineKeyboard
 		if (inlineKeyboard) {
 			inlineKeyboard
 				.row()
 				[isUrl ? "url" : "text"](text, urlOrCallbackData)
 		} else {
-			this.messages[this.messageIterator].inlineKeyboard =
-				new InlineKeyboard()[isUrl ? "url" : "text"](
+			this.addToCurrentMessage({
+				inlineKeyboard: new InlineKeyboard()[isUrl ? "url" : "text"](
 					text,
 					urlOrCallbackData
-				)
+				),
+			})
 		}
 		return this
 	}
 
-	private getMessage(index?: number): BroadcastMessage {
+	private getMessage(index?: number): BroadcastMessage | null {
+		if (isEmpty(this.messages)) return null
 		if (this.messages.length === 1) return this.messages[0]
 		if (this.abTestStrategy === "random") {
 			return arrayRandom(this.messages)
@@ -170,19 +170,42 @@ export class Broadcast {
 		if (!isEmpty(message.video)) return "video"
 		if (!isEmpty(message.videoNote)) return "videoNote"
 		if (!isEmpty(message.text)) return "text"
-		throw new Error("Can't define message type")
+		this.fatalError("Can't define message type")
 	}
 
-	private checkMessageComplete(message: BroadcastMessage) {
-		if (
-			isEmpty(message.text) &&
-			isEmpty(message.photo) &&
-			isEmpty(message.video) &&
-			isEmpty(message.videoNote)
-		) {
-			throw new Error(
-				"Message must have either text, photo, video or videoNote"
+	private validateBroadcast() {
+		if (isEmpty(this.chats)) {
+			if (this.isTest) {
+				this.fatalError(
+					"Please set ADMIN_CHAT_ID environment variable or pass chatIds as an argument to .test(...) method"
+				)
+			} else {
+				this.fatalError(
+					"List of chatIds is empty. Add chatIds with .addChats() method"
+				)
+			}
+		}
+		const hasEmptyMessage = this.messages.some(
+			message =>
+				isEmpty(message.text) &&
+				isEmpty(message.photo) &&
+				isEmpty(message.video) &&
+				isEmpty(message.videoNote)
+		)
+		if (!this.customActionCallback && hasEmptyMessage) {
+			this.fatalError(
+				"All messages must have either text, photo, video or videoNote"
 			)
+		}
+		if (isEmpty(this.messages) && !this.customActionCallback) {
+			this.fatalError(
+				"You must either pass chatIds as an argument to .test(...) or .addChats(...) methods or add custom action with .addCustomAction(...) method"
+			)
+		}
+		if (!isEmpty(this.messages)) {
+			for (const message of this.messages) {
+				this.getMessageType(message)
+			}
 		}
 	}
 
@@ -198,12 +221,7 @@ export class Broadcast {
 			this.uniquifyChats = false
 			this.chats = Array(this.messages.length).fill(ADMIN_CHAT_ID)
 		}
-		if (isEmpty(this.chats)) {
-			throw new Error(
-				"Please set ADMIN_CHAT_ID .env variable or pass chat_id as an argument to use test broadcasts"
-			)
-		}
-		console.log("Starting test broadcast ...")
+		this.validateBroadcast()
 		await this.start()
 	}
 
@@ -215,7 +233,7 @@ export class Broadcast {
 		} else if ("video_note" in response) {
 			return response.video_note.file_id
 		}
-		throw new Error("getMediaFileId: Unknown media type")
+		this.fatalError("getMediaFileId: Unknown media type")
 	}
 
 	private saveState() {
@@ -230,7 +248,7 @@ export class Broadcast {
 		try {
 			writeFileSync(this.stateFile, JSON.stringify(state, null, 2))
 		} catch (error) {
-			console.error(`Failed to save state: ${error}`)
+			this.logger.error(`Failed to save state: ${error}`)
 		}
 	}
 
@@ -242,29 +260,33 @@ export class Broadcast {
 			const data = readFileSync(this.stateFile, "utf8")
 			return JSON.parse(data) as BroadcastState
 		} catch (error) {
-			console.error(`Failed to load state: ${error}`)
+			this.logger.error(`Failed to load state: ${error}`)
 			return null
 		}
 	}
 
-	private async send(chatId: ChatId, index: number) {
-		this.totalSentCount = index + 1
-		console.log(`Sending message to chatId ${chatId}, index ${index} ...`)
-
+	private async send({
+		chatId,
+		index,
+		message,
+	}: {
+		chatId: ChatId
+		index: number
+		message: BroadcastMessage
+	}) {
 		const timedOutAbortController = new AbortController()
 		timedOutAbortController.signal.addEventListener("abort", () => {
-			console.log(
-				`Message with index ${index} to chatId ${chatId} timed out. Skipping ...`
+			this.logger.info(
+				`Message with index ${index} to chatId: ${chatId} timed out. Skipping ...`
 			)
 		})
 		const abortTimeout = setTimeout(() => {
 			timedOutAbortController.abort()
 		}, MESSAGE_SEND_TIMEOUT_MS)
 
-		try {
-			const message = this.getMessage(index)
-			const messageType = this.getMessageType(message)
+		const messageType = this.getMessageType(message)
 
+		try {
 			if (message.text) {
 				const shouldRequestChatInfo =
 					hasFirstNamePlaceholder(message.text) ||
@@ -385,8 +407,8 @@ export class Broadcast {
 
 			clearTimeout(abortTimeout)
 			this.successfullySentCount += 1
-			console.log(
-				`Successfully sent to ${chatId}, index ${index}/${
+			this.logger.info(
+				`Successfully sent to chatId: ${chatId}, index: ${index}/${
 					this.chats.length - 1
 				}, success ${this.successfullySentCount}/${
 					this.totalSentCount
@@ -394,24 +416,32 @@ export class Broadcast {
 					(this.successfullySentCount / this.totalSentCount) * 100
 				)}%)`
 			)
+			this.onSuccessCallback?.({chatId, index, message})
 		} catch (error: unknown) {
 			clearTimeout(abortTimeout)
 			this.totalErrorCount += 1
-			console.log(
+			this.logger.error(
 				`Error at index ${index}, chatId: ${chatId}. Skipping ...`
 			)
 			if (error instanceof GrammyError) {
 				if (error.parameters.migrate_to_chat_id) {
-					await this.send(error.parameters.migrate_to_chat_id, index)
+					await this.send({
+						chatId: error.parameters.migrate_to_chat_id,
+						index,
+						message,
+					})
 					return
 				}
-				const errorCode = getErrorCode(error.description)
-				this.onErrorCallback?.(errorCode, error)
+				this.onErrorCallback?.({
+					error,
+					code: getErrorCode(error.description),
+					chatId,
+					index,
+					message,
+				})
 			}
-			this.debug && console.error(error)
+			this.debug && this.logger.error(error)
 		}
-
-		console.log("---")
 	}
 
 	private getCachedMediaFileIdIfExists(
@@ -434,11 +464,18 @@ export class Broadcast {
 	}
 
 	public async start() {
-		if (isEmpty(this.chats)) {
-			throw new Error(
-				"List of chat_id is empty. Add chats with .addChats() method"
-			)
-		}
+		this.validateBroadcast()
+
+		this.logger.info(
+			`Starting ${this.isTest ? "test" : "production"} broadcast ${
+				this.broadcastFilename
+			} ...`
+		)
+
+		this.logger.info(
+			`Logs will be saved to ${getLogFilePath(this.broadcastFilename)}`
+		)
+
 		if (this.uniquifyChats) {
 			this.chats = arrayUnique(this.chats)
 		}
@@ -452,20 +489,32 @@ export class Broadcast {
 
 		if (state) {
 			startIndex = state.totalSentCount + 1
-			console.log(`Resuming from index ${startIndex}`)
+			this.logger.info(`Resuming from index ${startIndex}`)
 			this.totalSentCount = state.totalSentCount
 			this.successfullySentCount = state.successfullySentCount
 		}
-		console.log("---")
 
 		const loop = async (index: number) => {
 			const chatId = this.chats[index]
 			if (chatId) {
-				await this.send(chatId, index)
+				this.totalSentCount = index + 1
+				this.logger.info(
+					`Sending message to chatId: ${chatId}, index: ${index} ...`
+				)
+				const message = this.getMessage(index)
+
+				if (message) {
+					await this.send({chatId, index, message})
+				}
+				await this.customActionCallback?.({
+					chatId,
+					index,
+					message,
+				})
 				this.saveState()
 				await loop(index + 1)
 			} else {
-				console.log(
+				this.logger.info(
 					`Finished! To start again remove ${this.stateFile} file and run the script again`
 				)
 			}
@@ -473,10 +522,18 @@ export class Broadcast {
 		await loop(startIndex)
 	}
 
-	public onError(
-		callback: (code: ErrorCode | undefined, error: unknown) => void
-	) {
+	public onError(callback: BroadcastErrorCallback) {
 		this.onErrorCallback = callback
+		return this
+	}
+
+	public onSuccess(callback: BroadcastSuccessCallback) {
+		this.onSuccessCallback = callback
+		return this
+	}
+
+	public addCustomAction(callback: BroadcastCustomActionCallback) {
+		this.customActionCallback = callback
 		return this
 	}
 }

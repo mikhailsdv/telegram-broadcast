@@ -132,6 +132,9 @@ Starts the bot in raw mode to receive and process incoming messages.
 -   `.addChats(chatIds: ChatId[])` - Add chat IDs to the broadcast list
 -   `.nextMessage()` - Create a new message variant for A/B testing
 -   `.test(chatIdOrChatIds?: ChatId | ChatId[])` - Send test message(s)
+-   `.addCustomAction(callback: ({ chatId, index, message }) => Promise<void>)` - Run a custom async action after each send attempt
+-   `.onSuccess(callback: ({ chatId, index, message }) => void)` - Handle successful send for a chat
+-   `.onError(callback: ({ error, code, chatId, index, message }) => void)` - Handle send errors with error code
 -   `.start()` - Start the production broadcast
 
 ### Formatter Functions
@@ -159,6 +162,9 @@ import {bold} from "../src/formatter"
 new Broadcast()
 	.addChats([123456789, 987654321])
 	.addText(`Welcome to our channel! ${bold("Don't forget to subscribe!")}`)
+	.onSuccess(({chatId, index, message}) => {})
+	.onError(({error, code, chatId, index, message}) => {})
+	.addCustomAction(async ({chatId, index, message}) => {})
 	.start()
 ```
 
@@ -191,6 +197,8 @@ new Broadcast()
 	.addText(`Hello {{FIRST_NAME}} {{LAST_NAME}}! Welcome to our community.`)
 	.start()
 ```
+
+For additional examples, see [broadcasts/broadcast.example.ts](broadcasts/broadcast.example.ts).
 
 ## Environment Variables
 

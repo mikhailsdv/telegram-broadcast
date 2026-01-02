@@ -15,7 +15,7 @@ new Broadcast()
 	.test() // Send test message to yourself
 // Or .start(), to start production broadcast to everyone
 
-// Divide messages with variables
+// Or you can divide messages with variables
 const firstMessage = new Broadcast()
 	.addChats([1231231, 12312312, 1231231, 12312312]) // Add pool of chat IDs
 	.addText(`Hello, ${bold("world!")}`) // Adds text to the post, bold() makes it bold
@@ -29,3 +29,18 @@ const otherMessage = firstMessage
 
 otherMessage.test() // Send test message to yourself
 // Or .start(), to start production broadcast to everyone
+
+// With onSuccess and onError callbacks
+new Broadcast()
+	.addChats([111111, 222222])
+	.addText("With callbacks")
+	.onSuccess(({chatId, index, message}) => {})
+	.onError(({error, code, chatId, index, message}) => {})
+	.start()
+
+// You can also use custom action with .addCustomAction() method
+new Broadcast()
+	.addChats([333333, 444444])
+	.addText("With custom action")
+	.addCustomAction(async ({chatId, index, message}) => {})
+	.start()
