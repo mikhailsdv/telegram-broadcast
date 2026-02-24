@@ -2,10 +2,10 @@ import {BOT_TOKEN, ADMIN_CHAT_ID} from "./env"
 import {Bot, InputFile} from "grammy"
 import {jsonStringify} from "./utils"
 import {Message} from "grammy/types"
-import {SupportedMediaTypes} from "./types"
+import {SupportedMediaType} from "./types"
 
 const bot = new Bot(BOT_TOKEN)
-const mediaType = process.argv[2] as SupportedMediaTypes
+const mediaType = process.argv[2] as SupportedMediaType
 const src = process.argv[3]
 const mediaTypeMap = {
 	photo: "sendPhoto",

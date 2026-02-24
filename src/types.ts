@@ -1,6 +1,7 @@
-import {InlineKeyboard} from "grammy"
+import {InlineKeyboard, Bot} from "grammy"
 import {InputFile, Message, ParseMode} from "grammy/types"
 import {ErrorCode} from "./errors"
+import {Logger} from "./logger"
 
 export type ChatId = string | number
 
@@ -9,7 +10,7 @@ export type SupportedMessageType =
 	| Message.VideoMessage
 	| Message.VideoNoteMessage
 
-export type SupportedMediaTypes = "photo" | "video" | "videoNote"
+export type SupportedMediaType = "photo" | "video" | "videoNote"
 
 export type InputFileOrString = InputFile | string
 
@@ -34,7 +35,6 @@ export type BroadcastParams = {
 	shuffleChats?: boolean
 	abTestStrategy?: "random" | "distributed"
 	paseMode?: ParseMode
-	debug?: boolean
 }
 
 export type BroadcastErrorCallback = ({
@@ -43,30 +43,56 @@ export type BroadcastErrorCallback = ({
 	chatId,
 	index,
 	message,
+	bot,
+	logger,
 }: {
 	error: unknown
 	code: ErrorCode | undefined
 	chatId: ChatId
 	index: number
 	message: BroadcastMessage | null
-}) => void
+	bot: Bot
+	logger: Logger
+}) => Promise<void>
 
 export type BroadcastSuccessCallback = ({
 	chatId,
 	index,
 	message,
+	bot,
+	logger,
 }: {
 	chatId: ChatId
 	index: number
 	message: BroadcastMessage | null
-}) => void
+	bot: Bot
+	logger: Logger
+}) => Promise<void>
 
 export type BroadcastCustomActionCallback = ({
 	chatId,
 	index,
 	message,
+	bot,
+	logger,
 }: {
 	chatId: ChatId
 	index: number
 	message: BroadcastMessage | null
+	bot: Bot
+	logger: Logger
+}) => Promise<void>
+
+export type BroadcastBeforeSendCallback = ({
+	chatId,
+	index,
+	message,
+	bot,
+	logger,
+}: {
+	chatId: ChatId
+	index: number
+	message: BroadcastMessage | null
+	bot: Bot
+	logger: Logger
 }) => Promise<void>

@@ -12,6 +12,7 @@ import {
 	BroadcastErrorCallback,
 	BroadcastSuccessCallback,
 	BroadcastCustomActionCallback,
+	BroadcastBeforeSendCallback,
 } from "./types"
 import {
 	arrayRandom,
@@ -38,7 +39,6 @@ export class Broadcast {
 	public paseMode: NonNullable<BroadcastParams["paseMode"]> = "HTML"
 	public abTestStrategy: NonNullable<BroadcastParams["abTestStrategy"]> =
 		"distributed"
-	public debug: NonNullable<BroadcastParams["debug"]> = false
 	private bot: Bot
 	private messages: BroadcastMessage[] = []
 	private messagePointer = 0
@@ -53,6 +53,7 @@ export class Broadcast {
 	private stateFile?: string
 	private onErrorCallback?: BroadcastErrorCallback
 	private onSuccessCallback?: BroadcastSuccessCallback
+	private onBeforeSendCallback?: BroadcastBeforeSendCallback
 	private customActionCallback?: BroadcastCustomActionCallback
 
 	constructor(args?: BroadcastParams) {
@@ -61,7 +62,6 @@ export class Broadcast {
 		this.shuffleChats = args?.shuffleChats ?? this.shuffleChats
 		this.abTestStrategy = args?.abTestStrategy ?? this.abTestStrategy
 		this.paseMode = args?.paseMode ?? this.paseMode
-		this.debug = args?.debug ?? this.debug
 		this.isTest = false
 
 		if (!this.broadcastFilename) {
@@ -416,7 +416,13 @@ export class Broadcast {
 					(this.successfullySentCount / this.totalSentCount) * 100
 				)}%)`
 			)
-			this.onSuccessCallback?.({chatId, index, message})
+			await this.onSuccessCallback?.({
+				chatId,
+				index,
+				message,
+				bot: this.bot,
+				logger: this.logger,
+			})
 		} catch (error: unknown) {
 			clearTimeout(abortTimeout)
 			this.totalErrorCount += 1
@@ -432,15 +438,20 @@ export class Broadcast {
 					})
 					return
 				}
-				this.onErrorCallback?.({
-					error,
-					code: getErrorCode(error.description),
-					chatId,
-					index,
-					message,
-				})
 			}
-			this.debug && this.logger.error(error)
+			await this.onErrorCallback?.({
+				error,
+				code:
+					error instanceof GrammyError
+						? getErrorCode(error.description)
+						: "UNKNOWN",
+				chatId,
+				index,
+				message,
+				bot: this.bot,
+				logger: this.logger,
+			})
+			this.logger.error(error)
 		}
 	}
 
@@ -502,7 +513,13 @@ export class Broadcast {
 					`Sending message to chatId: ${chatId}, index: ${index} ...`
 				)
 				const message = this.getMessage(index)
-
+				await this.onBeforeSendCallback?.({
+					chatId,
+					index,
+					message,
+					bot: this.bot,
+					logger: this.logger,
+				})
 				if (message) {
 					await this.send({chatId, index, message})
 				}
@@ -510,6 +527,8 @@ export class Broadcast {
 					chatId,
 					index,
 					message,
+					bot: this.bot,
+					logger: this.logger,
 				})
 				this.saveState()
 				await loop(index + 1)
@@ -520,6 +539,11 @@ export class Broadcast {
 			}
 		}
 		await loop(startIndex)
+	}
+
+	public onBeforeSend(callback: BroadcastBeforeSendCallback) {
+		this.onBeforeSendCallback = callback
+		return this
 	}
 
 	public onError(callback: BroadcastErrorCallback) {
