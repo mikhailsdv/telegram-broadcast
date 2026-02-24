@@ -7,7 +7,8 @@
 		"poll": "ts-node --transpile-only ./src/poll.ts",
 		"cache": "ts-node --transpile-only ./src/cacheMedia.ts",
 		"get-file": "ts-node --transpile-only ./src/getFile.ts",
-		"broadcast": "ts-node --transpile-only ./src/startBroadcast.ts"
+		"broadcast": "ts-node --transpile-only ./src/startBroadcast.ts",
+		"format": "prettier --write ."
 	},
 	"author": "@mikhailsdv",
 	"license": "MIT",
@@ -24,5 +25,8 @@
 		"ts-node": "^10.9.2",
 		"tsc": "^2.0.4",
 		"typescript": "^5.7.3"
+	},
+	"devDependencies": {
+		"prettier": "^3.8.1"
 	}
 }

@@ -4,18 +4,18 @@ A powerful TypeScript-based low-code project for sending mass broadcasts with su
 
 ## Features
 
--   **Mass Broadcast**: Send messages to multiple chat IDs with rate limiting
--   **A/B Testing**: Create multiple message variants that alternate between users
--   **Media Support**: Send photos, videos, and video notes with automatic caching
--   **Rich Formatting**: HTML formatting with bold, italic, links, mentions, and quotes
--   **Inline Buttons**: Add clickable buttons to your messages
--   **Personalization**: Use placeholders for first name and last name
--   **Progress Tracking**: Monitor sending progress and success rates
--   **Test Mode**: Preview messages before sending to all recipients
--   **Resume Capability**: Continue interrupted broadcasts from where they left off
--   **Callbacks**: Per-chat hooks for success and error events (`onSuccess`, `onError`)
--   **Custom Actions**: Run async side effects after each send (`addCustomAction`)
--   **Structured Logging**: Per-broadcast log files and pretty console output
+- **Mass Broadcast**: Send messages to multiple chat IDs with rate limiting
+- **A/B Testing**: Create multiple message variants that alternate between users
+- **Media Support**: Send photos, videos, and video notes with automatic caching
+- **Rich Formatting**: HTML formatting with bold, italic, links, mentions, and quotes
+- **Inline Buttons**: Add clickable buttons to your messages
+- **Personalization**: Use placeholders for first name and last name
+- **Progress Tracking**: Monitor sending progress and success rates
+- **Test Mode**: Preview messages before sending to all recipients
+- **Resume Capability**: Continue interrupted broadcasts from where they left off
+- **Callbacks**: Per-chat hooks for success and error events (`onSuccess`, `onError`)
+- **Custom Actions**: Run async side effects after each send (`addCustomAction`)
+- **Structured Logging**: Per-broadcast log files and pretty console output
 
 ## Installation
 
@@ -112,47 +112,46 @@ Starts the bot in raw mode to receive and process incoming messages.
 
 #### Constructor Options
 
--   `chats?: ChatId[]` - Initial list of chat IDs
--   `shuffleChats?: boolean` - Whether to shuffle chat order (default: false)
--   `abTestStrategy?: "random" | "distributed"` - A/B test distribution strategy (default: "distributed")
--   `paseMode?: ParseMode` - Message parsing mode (default: "HTML")
--   `debug?: boolean` - Enable debug mode (default: false)
+- `chats?: ChatId[]` - Initial list of chat IDs
+- `shuffleChats?: boolean` - Whether to shuffle chat order (default: false)
+- `abTestStrategy?: "random" | "distributed"` - A/B test distribution strategy (default: "distributed")
+- `paseMode?: ParseMode` - Message parsing mode (default: "HTML")
 
 #### Methods
 
 **Content Methods:**
 
--   `.addText(text: string)` - Add text to the current message
--   `.addPhoto(photo: InputFile | string)` - Add photo to the current message
--   `.addVideo(video: InputFile | string)` - Add video to the current message
--   `.addVideoNote(videoNote: InputFile | string)` - Add video note to the current message
--   `.addButton(text: string, url: string)` - Add inline button to the current message
--   `.disableLinkPreview()` - Disable link preview for the current message
--   `.disableNotification()` - Send message silently
+- `.addText(text: string)` - Add text to the current message
+- `.addPhoto(photo: InputFile | string)` - Add photo to the current message
+- `.addVideo(video: InputFile | string)` - Add video to the current message
+- `.addVideoNote(videoNote: InputFile | string)` - Add video note to the current message
+- `.addButton(text: string, url: string)` - Add inline button to the current message
+- `.disableLinkPreview()` - Disable link preview for the current message
+- `.disableNotification()` - Send message silently
 
 **Control Methods:**
 
--   `.addChats(chatIds: ChatId[])` - Add chat IDs to the broadcast list
--   `.nextMessage()` - Create a new message variant for A/B testing
--   `.test(chatIdOrChatIds?: ChatId | ChatId[])` - Send test message(s)
--   `.addCustomAction(callback: ({ chatId, index, message }) => Promise<void>)` - Run a custom async action after each send attempt
--   `.onSuccess(callback: ({ chatId, index, message }) => void)` - Handle successful send for a chat
--   `.onError(callback: ({ error, code, chatId, index, message }) => void)` - Handle send errors with error code
--   `.start()` - Start the production broadcast
+- `.addChats(chatIds: ChatId[])` - Add chat IDs to the broadcast list
+- `.nextMessage()` - Create a new message variant for A/B testing
+- `.test(chatIdOrChatIds?: ChatId | ChatId[])` - Send test message(s)
+- `.addCustomAction(callback: ({ chatId, index, message }) => Promise<void>)` - Run a custom async action after each send attempt
+- `.onSuccess(callback: ({ chatId, index, message }) => void)` - Handle successful send for a chat
+- `.onError(callback: ({ error, code, chatId, index, message }) => void)` - Handle send errors with error code
+- `.start()` - Start the production broadcast
 
 ### Formatter Functions
 
--   `bold(text: string)` - Make text bold
--   `italic(text: string)` - Make text italic
--   `link(text: string, url: string)` - Create a clickable link
--   `mention(text: string, id: string)` - Create a user mention
--   `quote(text: string)` - Create a blockquote
+- `bold(text: string)` - Make text bold
+- `italic(text: string)` - Make text italic
+- `link(text: string, url: string)` - Create a clickable link
+- `mention(text: string, id: string)` - Create a user mention
+- `quote(text: string)` - Create a blockquote
 
 ### Personalization Placeholders
 
--   `{{FIRST_NAME}}` - Replaced with user's first name
--   `{{LAST_NAME}}` - Replaced with user's last name
--   `{{FIRST_NAME}} {{LAST_NAME}}` - Replaced with user's full name
+- `{{FIRST_NAME}}` - Replaced with user's first name
+- `{{LAST_NAME}}` - Replaced with user's last name
+- `{{FIRST_NAME}} {{LAST_NAME}}` - Replaced with user's full name
 
 ## Examples
 
@@ -214,11 +213,11 @@ For additional examples, see [broadcasts/broadcast.example.ts](broadcasts/broadc
 
 ## Dependencies
 
--   **grammy** - Telegram Bot API framework
--   **dotenv** - Environment variable management
--   **abort-controller** - Request cancellation
--   **typescript** - TypeScript support
--   **ts-node** - TypeScript execution
+- **grammy** - Telegram Bot API framework
+- **dotenv** - Environment variable management
+- **abort-controller** - Request cancellation
+- **typescript** - TypeScript support
+- **ts-node** - TypeScript execution
 
 ## License
 
