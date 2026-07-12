@@ -1,6 +1,10 @@
 import {existsSync} from "fs"
 import {spawn} from "child_process"
 import path from "path"
+import {fileURLToPath} from "url"
+
+const __filename = fileURLToPath(import.meta.url)
+const __dirname = path.dirname(__filename)
 
 const args = process.argv.slice(2)
 
@@ -20,7 +24,9 @@ if (!existsSync(filePath)) {
 	process.exit(1)
 }
 
-const child = spawn("ts-node", ["--transpile-only", filePath], {
+const tsxPath = path.join(__dirname, "../node_modules/.bin/tsx")
+
+const child = spawn(tsxPath, [filePath], {
 	stdio: "inherit",
 	env: {
 		...process.env,

@@ -1,19 +1,16 @@
 {
 	"compilerOptions": {
-		"target": "ES2020",
-		"module": "commonjs",
+		"target": "ES2022",
+		"module": "NodeNext",
+		"moduleResolution": "NodeNext",
 		"esModuleInterop": true,
 		"noEmit": true,
 		"allowJs": true,
 		"strict": true,
 		"noUnusedLocals": true,
 		"noUnusedParameters": true,
-		"resolveJsonModule": true,
-		"paths": {
-			"@/*": ["./src/*"],
-			"#root/*": ["./*"]
-		}
+		"resolveJsonModule": true
 	},
-	"include": ["./src/**/*.ts"],
+	"include": ["./src/**/*.ts", "./broadcasts/**/*.ts"],
 	"exclude": ["node_modules"]
 }

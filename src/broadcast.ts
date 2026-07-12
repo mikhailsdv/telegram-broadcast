@@ -1,6 +1,6 @@
 import {existsSync, readFileSync, writeFileSync} from "fs"
 import path from "path"
-import {InputFile} from "grammy/types"
+import {InputFile, KeyboardButton, ParseMode} from "grammy/types"
 import {AbortController} from "abort-controller"
 import {
 	BroadcastMessage,
@@ -13,7 +13,9 @@ import {
 	BroadcastSuccessCallback,
 	BroadcastCustomActionCallback,
 	BroadcastBeforeSendCallback,
-} from "./types"
+	ButtonColor,
+	BroadcastAbTestStrategy,
+} from "./types.js"
 import {
 	arrayRandom,
 	isEmpty,
@@ -21,24 +23,25 @@ import {
 	arrayUnique,
 	arrayEnd,
 	shuffleArray,
-} from "./utils"
+} from "./utils.js"
 import {Bot, GrammyError, InlineKeyboard} from "grammy"
 import {
 	hasFirstNamePlaceholder,
 	hasLastNamePlaceholder,
 	replaceFirstNamePlaceholder,
 	replaceLastNamePlaceholder,
-} from "./formatter"
-import {ADMIN_CHAT_ID, BOT_TOKEN, MESSAGE_SEND_TIMEOUT_MS} from "./env"
-import {getErrorCode} from "./errors"
-import {createLogger, getLogFilePath, type Logger} from "./logger"
+} from "./formatter.js"
+import {getErrorCode} from "./errors.js"
+import {createLogger, getLogFilePath, type Logger} from "./logger.js"
+
+const DEFAULT_MESSAGE_SEND_TIMEOUT_MS = 20_000
 
 export class Broadcast {
-	public chats: NonNullable<BroadcastParams["chats"]> = []
+	public chats: ChatId[] = []
 	public shuffleChats = false
-	public paseMode: NonNullable<BroadcastParams["paseMode"]> = "HTML"
-	public abTestStrategy: NonNullable<BroadcastParams["abTestStrategy"]> =
-		"distributed"
+	public paseMode: ParseMode = "HTML"
+	public abTestStrategy: BroadcastAbTestStrategy = "distributed"
+	public messagesPerSecond = 1
 	private bot: Bot
 	private messages: BroadcastMessage[] = []
 	private messagePointer = 0
@@ -49,6 +52,7 @@ export class Broadcast {
 	private uniquifyChats = true
 	private broadcastFilename = process.env.BROADCAST_FILENAME!
 	private isTest = false
+	private adminChatId?: ChatId
 	private logger: Logger
 	private stateFile?: string
 	private onErrorCallback?: BroadcastErrorCallback
@@ -56,12 +60,7 @@ export class Broadcast {
 	private onBeforeSendCallback?: BroadcastBeforeSendCallback
 	private customActionCallback?: BroadcastCustomActionCallback
 
-	constructor(args?: BroadcastParams) {
-		this.bot = new Bot(BOT_TOKEN)
-		this.chats = args?.chats ?? this.chats
-		this.shuffleChats = args?.shuffleChats ?? this.shuffleChats
-		this.abTestStrategy = args?.abTestStrategy ?? this.abTestStrategy
-		this.paseMode = args?.paseMode ?? this.paseMode
+	constructor(args: BroadcastParams) {
 		this.isTest = false
 
 		if (!this.broadcastFilename) {
@@ -75,11 +74,43 @@ export class Broadcast {
 			"broadcasts",
 			`.broadcast.${this.broadcastFilename}.json`
 		)
+
+		if (isEmpty(args?.token)) {
+			this.fatalError(
+				"A bot token is required for this broadcast. Pass it to the Broadcast constructor"
+			)
+		}
+		this.bot = new Bot(args.token)
 	}
 
 	private fatalError(message: string): never {
 		this.logger.fatal(message)
 		process.exit(1)
+	}
+
+	public setMessagesPerSecond(messagesPerSecond: number) {
+		this.messagesPerSecond = messagesPerSecond
+		return this
+	}
+
+	public setShuffleChats(shuffleChats: boolean) {
+		this.shuffleChats = shuffleChats
+		return this
+	}
+
+	public setAbTestStrategy(abTestStrategy: BroadcastAbTestStrategy) {
+		this.abTestStrategy = abTestStrategy
+		return this
+	}
+
+	public setPaseMode(paseMode: ParseMode) {
+		this.paseMode = paseMode
+		return this
+	}
+
+	public setAdminChatId(adminChatId: ChatId) {
+		this.adminChatId = adminChatId
+		return this
 	}
 
 	private addToCurrentMessage(properties: Partial<BroadcastMessage>) {
@@ -131,22 +162,36 @@ export class Broadcast {
 		return this
 	}
 
-	public addButton(text: string, urlOrCallbackData: string) {
+	public addButton(
+		text: string,
+		urlOrCallbackData: string,
+		color?: ButtonColor
+	) {
+		const styleToColorMap: Record<
+			ButtonColor,
+			Exclude<KeyboardButton.CommonButton["style"], undefined>
+		> = {
+			blue: "primary",
+			red: "danger",
+			green: "success",
+		}
 		const isUrl = /^https?:\/\//.test(urlOrCallbackData)
-		const inlineKeyboard =
-			this.messages[this.messagePointer]?.inlineKeyboard
+		let inlineKeyboard = this.messages[this.messagePointer]?.inlineKeyboard
 		if (inlineKeyboard) {
 			inlineKeyboard
 				.row()
 				[isUrl ? "url" : "text"](text, urlOrCallbackData)
 		} else {
-			this.addToCurrentMessage({
-				inlineKeyboard: new InlineKeyboard()[isUrl ? "url" : "text"](
-					text,
-					urlOrCallbackData
-				),
-			})
+			inlineKeyboard = new InlineKeyboard()[isUrl ? "url" : "text"](
+				text,
+				urlOrCallbackData
+			)
+			this.addToCurrentMessage({inlineKeyboard})
 		}
+		if (color) {
+			inlineKeyboard.style(styleToColorMap[color])
+		}
+
 		return this
 	}
 
@@ -174,10 +219,16 @@ export class Broadcast {
 	}
 
 	private validateBroadcast() {
+		if (
+			!Number.isFinite(this.messagesPerSecond) ||
+			this.messagesPerSecond <= 0
+		) {
+			this.fatalError("Messages per second must be a positive number")
+		}
 		if (isEmpty(this.chats)) {
 			if (this.isTest) {
 				this.fatalError(
-					"Please set ADMIN_CHAT_ID environment variable or pass chatIds as an argument to .test(...) method"
+					"Please set admin chat id with .setAdminChatId(...) method or pass chatIds as an argument to .test(...) method"
 				)
 			} else {
 				this.fatalError(
@@ -217,9 +268,9 @@ export class Broadcast {
 			} else {
 				this.chats = [chatIdOrChatIds]
 			}
-		} else if (ADMIN_CHAT_ID) {
+		} else if (!isEmpty(this.adminChatId)) {
 			this.uniquifyChats = false
-			this.chats = Array(this.messages.length).fill(ADMIN_CHAT_ID)
+			this.chats = Array(this.messages.length).fill(this.adminChatId)
 		}
 		this.validateBroadcast()
 		await this.start()
@@ -282,7 +333,7 @@ export class Broadcast {
 		})
 		const abortTimeout = setTimeout(() => {
 			timedOutAbortController.abort()
-		}, MESSAGE_SEND_TIMEOUT_MS)
+		}, DEFAULT_MESSAGE_SEND_TIMEOUT_MS)
 
 		const messageType = this.getMessageType(message)
 

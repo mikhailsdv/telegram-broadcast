@@ -1,8 +1,11 @@
-import {BOT_TOKEN} from "./env"
 import {Bot} from "grammy"
-import {sendRaw} from "./utils"
+import {addTokenOption, createCli, getRequiredOption} from "./cli.js"
+import {sendRaw} from "./utils.js"
 
-const bot = new Bot(BOT_TOKEN)
+const cli = addTokenOption(createCli("raw"))
+const {options} = cli.parse()
+const token = getRequiredOption(cli, options, "token", "bot token")
+const bot = new Bot(token)
 
 bot.on("message", async ctx => {
 	await sendRaw(ctx.chatId, ctx.api, ctx.message)

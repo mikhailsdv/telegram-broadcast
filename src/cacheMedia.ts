@@ -1,12 +1,27 @@
-import {BOT_TOKEN, ADMIN_CHAT_ID} from "./env"
 import {Bot, InputFile} from "grammy"
-import {jsonStringify} from "./utils"
+import {
+	addChatOption,
+	addTokenOption,
+	createCli,
+	getRequiredArg,
+	getRequiredOption,
+} from "./cli.js"
+import {jsonStringify} from "./utils.js"
 import {Message} from "grammy/types"
-import {SupportedMediaType} from "./types"
+import {SupportedMediaType} from "./types.js"
 
-const bot = new Bot(BOT_TOKEN)
-const mediaType = process.argv[2] as SupportedMediaType
-const src = process.argv[3]
+const cli = addChatOption(addTokenOption(createCli("cache")))
+const parsed = cli.parse()
+const token = getRequiredOption(cli, parsed.options, "token", "bot token")
+const chatId = getRequiredOption(cli, parsed.options, "chat", "chat id")
+const bot = new Bot(token)
+const mediaType = getRequiredArg(
+	cli,
+	parsed.args,
+	0,
+	"media type"
+) as SupportedMediaType
+const src = getRequiredArg(cli, parsed.args, 1, "media path")
 const mediaTypeMap = {
 	photo: "sendPhoto",
 	video: "sendVideo",
@@ -22,7 +37,7 @@ if (!mediaTypeMap[mediaType]) {
 }
 const apiMethod = mediaTypeMap[mediaType]
 ;(async () => {
-	const response = await bot.api[apiMethod](ADMIN_CHAT_ID, new InputFile(src))
+	const response = await bot.api[apiMethod](chatId, new InputFile(src))
 	console.log(jsonStringify(response))
 	let fileId: string | void = undefined
 	if (mediaType === "photo") {

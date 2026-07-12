@@ -32,15 +32,6 @@ cd telegram-broadcast
 npm install
 ```
 
-3. Create a `.env` file in the root directory:
-
-```env
-BOT_TOKEN=your_telegram_bot_token
-MESSAGES_PER_SECOND=1
-ADMIN_CHAT_ID=your_chat_id
-MESSAGE_SEND_TIMEOUT_MS=20000
-```
-
 ## Usage
 
 ### Creating a Broadcast
@@ -49,11 +40,12 @@ Create a new broadcast file in the `broadcasts/` directory:
 
 ```typescript
 import {InputFile} from "grammy"
-import {Broadcast} from "../src/broadcast"
-import {bold, italic, link} from "../src/formatter"
+import {Broadcast} from "../src/broadcast.js"
+import {bold, italic, link} from "../src/formatter.js"
 
-new Broadcast()
+new Broadcast({token: "your_bot_token"})
 	.addChats([123456789, 987654321]) // Add chat IDs
+	.setAdminChatId(123456789) // For test broadcasts
 	.addText(`Hello, ${bold("world!")}`)
 	.addPhoto(new InputFile("path/to/image.jpg"))
 	.addButton("Visit Website", "https://example.com")
@@ -64,47 +56,48 @@ new Broadcast()
 // .start() // Start production broadcast
 ```
 
-### Running Broadcasts
+### Commands
 
-### `npm run broadcast <filename>`
-
-Runs a broadcast file from the `broadcasts/` directory.
-
-**Usage:**
+`npm run broadcast <filename>` runs a broadcast file from the `broadcasts/` directory.
 
 ```bash
 npm run broadcast my-campaign
 ```
 
-### `npm run cache`
-
-Caches media files by uploading them to Telegram and getting file IDs. This improves sending performance for subsequent broadcasts.
-
-**Usage:**
+`npm run raw` starts the bot in raw mode and sends received Telegram update payloads back to the same chat.
 
 ```bash
-npm run cache photo path/to/image.jpg
-npm run cache video path/to/video.mp4
-npm run cache videoNote path/to/videonote.mp4
+npm run raw -- -t your_bot_token
+npm run raw -- --token your_bot_token
 ```
 
-### `npm run get-file`
-
-Retrieves a file from Telegram using its file ID and sends it to the admin chat.
-
-**Usage:**
+`npm run poll` sends a sample poll to a chat and replies with the raw Telegram response.
 
 ```bash
-npm run get-file <file_id>
+npm run poll -- -t your_bot_token -c 123456789
+npm run poll -- --token your_bot_token --chat 123456789
 ```
 
-### `npm run poll`
+`npm run cache` uploads media to a chat and prints the resulting `file_id`.
 
-Sends a poll to the admin chat for testing purposes.
+```bash
+npm run cache -- photo path/to/image.jpg -t your_bot_token -c 123456789
+npm run cache -- video path/to/video.mp4 --token your_bot_token --chat 123456789
+npm run cache -- videoNote path/to/videonote.mp4 -t your_bot_token -c 123456789
+```
 
-### `npm run raw`
+`npm run get-file` sends a Telegram file by `file_id` to a chat and prints the raw Telegram response.
 
-Starts the bot in raw mode to receive and process incoming messages.
+```bash
+npm run get-file -- -f <file_id> -t your_bot_token -c 123456789
+npm run get-file -- --file-id <file_id> --token your_bot_token --chat 123456789
+```
+
+`npm run format` formats the repository with Prettier.
+
+```bash
+npm run format
+```
 
 ## API Reference
 
@@ -112,10 +105,7 @@ Starts the bot in raw mode to receive and process incoming messages.
 
 #### Constructor Options
 
-- `chats?: ChatId[]` - Initial list of chat IDs
-- `shuffleChats?: boolean` - Whether to shuffle chat order (default: false)
-- `abTestStrategy?: "random" | "distributed"` - A/B test distribution strategy (default: "distributed")
-- `paseMode?: ParseMode` - Message parsing mode (default: "HTML")
+- `token: string` - Telegram bot token
 
 #### Methods
 
@@ -132,6 +122,11 @@ Starts the bot in raw mode to receive and process incoming messages.
 **Control Methods:**
 
 - `.addChats(chatIds: ChatId[])` - Add chat IDs to the broadcast list
+- `.setShuffleChats(shuffleChats: boolean)` - Whether to shuffle chat order (default: false)
+- `.setAbTestStrategy(abTestStrategy: "random" | "distributed")` - A/B test distribution strategy (default: "distributed")
+- `.setPaseMode(paseMode: ParseMode)` - Message parsing mode (default: "HTML")
+- `.setMessagesPerSecond(messagesPerSecond: number)` - Rate limiting for message sending (default: 1)
+- `.setAdminChatId(adminChatId: ChatId)` - Chat ID for test broadcasts
 - `.nextMessage()` - Create a new message variant for A/B testing
 - `.test(chatIdOrChatIds?: ChatId | ChatId[])` - Send test message(s)
 - `.addCustomAction(callback: ({ chatId, index, message }) => Promise<void>)` - Run a custom async action after each send attempt
@@ -158,10 +153,10 @@ Starts the bot in raw mode to receive and process incoming messages.
 ### Simple Text Broadcast
 
 ```typescript
-import {Broadcast} from "../src/broadcast"
-import {bold} from "../src/formatter"
+import {Broadcast} from "../src/broadcast.js"
+import {bold} from "../src/formatter.js"
 
-new Broadcast()
+new Broadcast({token: "your_bot_token"})
 	.addChats([123456789, 987654321])
 	.addText(`Welcome to our channel! ${bold("Don't forget to subscribe!")}`)
 	.onSuccess(({chatId, index, message}) => {})
@@ -174,11 +169,12 @@ new Broadcast()
 
 ```typescript
 import {InputFile} from "grammy"
-import {Broadcast} from "../src/broadcast"
-import {bold, italic} from "../src/formatter"
+import {Broadcast} from "../src/broadcast.js"
+import {bold, italic} from "../src/formatter.js"
 
-new Broadcast()
+new Broadcast({token: "your_bot_token"})
 	.addChats([123456789, 987654321])
+	.setAdminChatId(123456789)
 	.addText(`Check out our new product! ${bold("Limited time offer!")}`)
 	.addPhoto(new InputFile("product.jpg"))
 	.addButton("Buy Now", "https://shop.example.com")
@@ -192,32 +188,32 @@ new Broadcast()
 ### Personalized Broadcast
 
 ```typescript
-import {Broadcast} from "../src/broadcast"
+import {Broadcast} from "../src/broadcast.js"
 
-new Broadcast()
+new Broadcast({token: "your_bot_token"})
 	.addChats([123456789, 987654321])
+	.setPaseMode("HTML") // This is default
 	.addText(`Hello {{FIRST_NAME}} {{LAST_NAME}}! Welcome to our community.`)
 	.start()
 ```
 
 For additional examples, see [broadcasts/broadcast.example.ts](broadcasts/broadcast.example.ts).
 
-## Environment Variables
+## CLI Flags
 
-| Variable                  | Description                       | Default  |
-| ------------------------- | --------------------------------- | -------- |
-| `BOT_TOKEN`               | Your Telegram bot token           | Required |
-| `MESSAGES_PER_SECOND`     | Rate limiting for message sending | Required |
-| `ADMIN_CHAT_ID`           | Chat ID for admin notifications   | Required |
-| `MESSAGE_SEND_TIMEOUT_MS` | Timeout for message sending       | 20000    |
+Helper commands use CLI flags instead of `.env` variables:
+
+- `-t, --token` - Telegram bot token
+- `-c, --chat` - Telegram chat ID
+- `-f, --file-id` - Telegram file ID (`get-file` only)
 
 ## Dependencies
 
 - **grammy** - Telegram Bot API framework
-- **dotenv** - Environment variable management
+- **cac** - CLI argument parsing for helper scripts
 - **abort-controller** - Request cancellation
 - **typescript** - TypeScript support
-- **ts-node** - TypeScript execution
+- **tsx** - TypeScript execution
 
 ## License
 

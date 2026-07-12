@@ -1,7 +1,7 @@
 import {InlineKeyboard, Bot} from "grammy"
-import {InputFile, Message, ParseMode} from "grammy/types"
-import {ErrorCode} from "./errors"
-import {Logger} from "./logger"
+import {InputFile, Message} from "grammy/types"
+import {ErrorCode} from "./errors.js"
+import {Logger} from "./logger.js"
 
 export type ChatId = string | number
 
@@ -13,6 +13,8 @@ export type SupportedMessageType =
 export type SupportedMediaType = "photo" | "video" | "videoNote"
 
 export type InputFileOrString = InputFile | string
+
+export type BroadcastAbTestStrategy = "random" | "distributed"
 
 export type BroadcastMessage = {
 	text?: string
@@ -31,10 +33,7 @@ export type BroadcastState = {
 }
 
 export type BroadcastParams = {
-	chats?: ChatId[]
-	shuffleChats?: boolean
-	abTestStrategy?: "random" | "distributed"
-	paseMode?: ParseMode
+	token: string
 }
 
 export type BroadcastErrorCallback = ({
@@ -96,3 +95,5 @@ export type BroadcastBeforeSendCallback = ({
 	bot: Bot
 	logger: Logger
 }) => Promise<void>
+
+export type ButtonColor = "red" | "blue" | "green"

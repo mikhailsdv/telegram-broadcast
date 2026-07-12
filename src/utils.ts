@@ -1,5 +1,5 @@
 import {Api} from "grammy"
-import {ChatId} from "./types"
+import {ChatId} from "./types.js"
 
 export function trim(str: string) {
 	return str.trim().replace(/\t+|^\n+|\n+$/g, "")
@@ -51,7 +51,7 @@ export function isEmpty(value: any) {
 export const wait = (delay: number) =>
 	new Promise(resolve => setTimeout(resolve, delay))
 
-export function prepareMongoExportedChats(arr: any[]) {
+export function prepareMongoExportedChats(arr: any[]): ChatId[] {
 	return Array.from(
 		new Set(
 			arr.map(item => {
