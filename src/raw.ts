@@ -9,7 +9,6 @@ import {sendRaw} from "./utils.js"
 
 const cli = addChatOption(addTokenOption(createCli("raw")))
 const parsed = cli.parse()
-console.log(parsed.options)
 const token = getRequiredOption(cli, parsed.options, "token", "bot token")
 const chatId = getRequiredOption<number>(cli, parsed.options, "chat", "chat id")
 const bot = new Bot(token)
