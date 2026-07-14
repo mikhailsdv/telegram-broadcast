@@ -17,14 +17,17 @@ export function addFileIdOption(cli: CAC) {
 	return cli.option("-f, --file-id <fileId>", "Telegram file ID")
 }
 
-export function getRequiredOption(
+export function getRequiredOption<T = string>(
 	cli: CAC,
 	options: Record<string, unknown>,
 	name: string,
 	description: string
-): string {
-	const value = options[name]
-	if (typeof value !== "string" || isEmpty(value)) {
+): T {
+	const value = options[name] as T
+	if (
+		(typeof value !== "string" && typeof value !== "number") ||
+		isEmpty(value)
+	) {
 		console.error(`Missing required ${description}`)
 		cli.outputHelp()
 		process.exit(1)

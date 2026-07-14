@@ -502,7 +502,11 @@ export class Broadcast {
 				bot: this.bot,
 				logger: this.logger,
 			})
-			this.logger.error(error)
+			if (error instanceof GrammyError || error instanceof Error) {
+				this.logger.error(error.message)
+			} else {
+				this.logger.error(error)
+			}
 		}
 	}
 
