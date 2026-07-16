@@ -23,6 +23,7 @@ import {
 	arrayUnique,
 	arrayEnd,
 	shuffleArray,
+	formatDuration,
 } from "./utils.js"
 import {Bot, GrammyError, InlineKeyboard} from "grammy"
 import {
@@ -55,6 +56,8 @@ export class Broadcast {
 	private adminChatId?: ChatId
 	private logger: Logger
 	private stateFile?: string
+	private startedAt = 0
+	private sessionStartIndex = 0
 	private onErrorCallback?: BroadcastErrorCallback
 	private onSuccessCallback?: BroadcastSuccessCallback
 	private onBeforeSendCallback?: BroadcastBeforeSendCallback
@@ -459,13 +462,7 @@ export class Broadcast {
 			clearTimeout(abortTimeout)
 			this.successfullySentCount += 1
 			this.logger.info(
-				`Successfully sent to chatId: ${chatId}, index: ${index}/${
-					this.chats.length - 1
-				}, success ${this.successfullySentCount}/${
-					this.totalSentCount
-				} (${Math.round(
-					(this.successfullySentCount / this.totalSentCount) * 100
-				)}%)`
+				`Successfully sent to chatId: ${chatId}. ${this.getProgress(index)}`
 			)
 			await this.onSuccessCallback?.({
 				chatId,
@@ -507,7 +504,24 @@ export class Broadcast {
 			} else {
 				this.logger.error(error)
 			}
+		} finally {
+			this.logger.info(this.getProgress(index))
 		}
+	}
+
+	private getProgress(index: number) {
+		const sentSinceStart = index - this.sessionStartIndex + 1
+		const remaining = this.chats.length - index - 1
+		const elapsedMs = Date.now() - this.startedAt
+		const etaMs =
+			sentSinceStart > 0 ? (elapsedMs / sentSinceStart) * remaining : 0
+		return `Progress: index: ${index}/${
+			this.chats.length - 1
+		}, Success: ${this.successfullySentCount}/${
+			this.totalSentCount
+		} (${Math.round(
+			(this.successfullySentCount / this.totalSentCount) * 100
+		)}%), ETA: ${formatDuration(etaMs)}`
 	}
 
 	private getCachedMediaFileIdIfExists(
@@ -559,6 +573,9 @@ export class Broadcast {
 			this.totalSentCount = state.totalSentCount
 			this.successfullySentCount = state.successfullySentCount
 		}
+
+		this.startedAt = Date.now()
+		this.sessionStartIndex = startIndex
 
 		const loop = async (index: number) => {
 			const chatId = this.chats[index]
